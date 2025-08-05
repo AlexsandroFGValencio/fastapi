@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run syntax check
+        run: python -m compileall -q .
+
+      - name: Run tests
+        run: python -m unittest tests/test_capital_gain.py
+
+  docker:
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t capital-gain .
+
+      - name: Test Docker image
+        run: |
+          echo '[{"operation":"buy","unit-cost":5000.00,"quantity":10}]' \
+          | docker run -i capital-gain

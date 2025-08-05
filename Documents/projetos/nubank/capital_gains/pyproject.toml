@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "capital-gain-calculator"
+version = "1.0.0"
+description = "A simple capital gain tax calculator for stock buy/sell operations."
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+    {name = "Alexsandro Valencio", email = "alexsandrovalencio@gmail.com"}
+]
+license = {text = "MIT"}
+keywords = ["finance", "capital-gain", "stocks", "taxes"]
+
+[project.scripts]
+capital-gain = "src.main:main"
+capital-gain-test = "tests.runner:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
