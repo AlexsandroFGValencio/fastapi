@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+
+{% block title %}Empresas - Trivaxion{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Empresas</h1>
+        <p class="mt-1 text-sm text-gray-600">Empresas disponíveis para análise</p>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <div class="px-4 py-3 border-b border-gray-200">
+            <input type="text" 
+                   id="search-input"
+                   placeholder="Buscar por CNPJ ou razão social..." 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                   hx-get="/web/partials/companies-list"
+                   hx-trigger="keyup changed delay:500ms"
+                   hx-target="#companies-list"
+                   hx-include="[name='search']">
+        </div>
+        <ul id="companies-list" class="divide-y divide-gray-200"
+            hx-get="/web/partials/companies-list" 
+            hx-trigger="load"
+            hx-swap="innerHTML">
+            <li class="px-6 py-4 text-center text-gray-500">
+                Carregando empresas...
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Modal de Análise em Tempo Real -->
+<div id="analysis-modal" class="hidden fixed z-10 inset-0 overflow-y-auto">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Análise em Tempo Real</h3>
+                    <button onclick="closeAnalysisModal()" class="text-gray-400 hover:text-gray-500">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="analysis-content" class="mt-4">
+                    <!-- Conteúdo será carregado aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function requestAnalysis(cnpj) {
+    const modal = document.getElementById('analysis-modal');
+    const content = document.getElementById('analysis-content');
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
+    
+    // Mostrar loading
+    content.innerHTML = `
+        <div class="text-center py-8">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Iniciando análise...</p>
+        </div>
+    `;
+    
+    // Criar análise
+    const token = localStorage.getItem('access_token');
+    fetch('/api/v1/analyses', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ cnpj: cnpj })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.id) {
+            // Iniciar polling para atualizar status
+            pollAnalysisStatus(data.id);
+        } else {
+            content.innerHTML = '<div class="text-red-500">Erro ao criar análise</div>';
+        }
+    })
+    .catch(error => {
+        content.innerHTML = '<div class="text-red-500">Erro: ' + error.message + '</div>';
+    });
+}
+
+function pollAnalysisStatus(analysisId) {
+    const content = document.getElementById('analysis-content');
+    const token = localStorage.getItem('access_token');
+    
+    // Buscar dados completos imediatamente
+    fetchFullAnalysisData(analysisId);
+    
+    // Continuar polling apenas para status de risco
+    const interval = setInterval(() => {
+        fetch('/api/v1/analyses/' + analysisId, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Atualizar apenas status e risco
+            updateAnalysisContent(data);
+            
+            // Parar polling se completado ou com erro
+            if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+                clearInterval(interval);
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar status:', error);
+            clearInterval(interval);
+        });
+    }, 2000); // Poll a cada 2 segundos
+}
+
+function fetchFullAnalysisData(analysisId) {
+    const token = localStorage.getItem('access_token');
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const tryFetch = () => {
+        fetch('/api/v1/analyses/' + analysisId, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Dados recebidos:', data);
+            
+            // Se tiver company_data, exibir
+            if (data.company_data && Object.keys(data.company_data).length > 0) {
+                updateAnalysisContent(data);
+            } else {
+                // Se não tiver dados ainda, tentar novamente
+                attempts++;
+                if (attempts < maxAttempts) {
+                    console.log(`Tentativa ${attempts}/${maxAttempts} - Aguardando dados...`);
+                    setTimeout(tryFetch, 1000); // Tentar novamente em 1 segundo
+                } else {
+                    console.log('Dados não disponíveis após múltiplas tentativas');
+                    updateAnalysisContent(data); // Exibir o que tiver
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar dados:', error);
+            attempts++;
+            if (attempts < maxAttempts) {
+                setTimeout(tryFetch, 1000);
+            }
+        });
+    };
+    
+    tryFetch();
+}
+
+function formatDate(dateString) {
+    if (!dateString) return null;
+    
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        
+        return `${day}/${month}/${year}`;
+    } catch (e) {
+        return dateString;
+    }
+}
+
+function updateAnalysisContent(analysis) {
+    const content = document.getElementById('analysis-content');
+    
+    const statusBadge = analysis.status === 'COMPLETED' 
+        ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">CONCLUÍDA</span>'
+        : analysis.status === 'PROCESSING'
+        ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">PROCESSANDO</span>'
+        : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">ERRO</span>';
+    
+    const riskBadge = analysis.risk_level === 'HIGH'
+        ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">ALTO</span>'
+        : analysis.risk_level === 'MEDIUM'
+        ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">MÉDIO</span>'
+        : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">BAIXO</span>';
+    
+    let html = `
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900">${analysis.company_data?.razao_social || 'Carregando...'}</h4>
+                    <p class="text-sm text-gray-500">CNPJ: ${analysis.cnpj}</p>
+                </div>
+                <div class="text-right">
+                    ${statusBadge}
+                </div>
+            </div>
+    `;
+    
+    if (analysis.status === 'PROCESSING') {
+        html += `
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">Processando análise... Aguarde enquanto coletamos e analisamos os dados.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (analysis.company_data) {
+        const companyData = analysis.company_data;
+        
+        html += `
+            <div class="border-t pt-4">
+                <h5 class="text-sm font-semibold text-gray-900 mb-3">Informações Cadastrais</h5>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Nome Fantasia</p>
+                        <p class="mt-1 text-sm text-gray-900">${companyData.nome_fantasia || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Situação</p>
+                        <p class="mt-1 text-sm text-gray-900">${companyData.situacao_cadastral || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Porte</p>
+                        <p class="mt-1 text-sm text-gray-900">${companyData.porte || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Natureza Jurídica</p>
+                        <p class="mt-1 text-sm text-gray-900">${companyData.natureza_juridica || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Capital Social</p>
+                        <p class="mt-1 text-sm text-gray-900">R$ ${(companyData.capital_social || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Data de Abertura</p>
+                        <p class="mt-1 text-sm text-gray-900">${formatDate(companyData.data_abertura) || 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Endereço
+        if (companyData.logradouro || companyData.municipio) {
+            html += `
+                <div class="border-t pt-4">
+                    <h5 class="text-sm font-semibold text-gray-900 mb-3">Endereço</h5>
+                    <div class="text-sm text-gray-900">
+                        <p>${companyData.logradouro || ''} ${companyData.numero || ''} ${companyData.complemento || ''}</p>
+                        <p>${companyData.bairro || ''}</p>
+                        <p>${companyData.municipio || ''} - ${companyData.uf || ''}</p>
+                        <p>CEP: ${companyData.cep || 'N/A'}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // CNAEs
+        if (companyData.cnae_fiscal_principal || (companyData.cnaes_secundarios && companyData.cnaes_secundarios.length > 0)) {
+            html += `
+                <div class="border-t pt-4">
+                    <h5 class="text-sm font-semibold text-gray-900 mb-3">Atividades Econômicas</h5>
+                    <div class="space-y-2">
+            `;
+            
+            if (companyData.cnae_fiscal_principal) {
+                html += `
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">CNAE Principal</p>
+                        <p class="text-sm text-gray-900">${companyData.cnae_fiscal_principal}</p>
+                    </div>
+                `;
+            }
+            
+            if (companyData.cnaes_secundarios && companyData.cnaes_secundarios.length > 0) {
+                html += `
+                    <div>
+                        <p class="text-xs font-medium text-gray-500">CNAEs Secundários</p>
+                        <ul class="text-sm text-gray-900 list-disc list-inside">
+                            ${companyData.cnaes_secundarios.map(cnae => `<li>${cnae}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        // QSA (Quadro de Sócios e Administradores)
+        if (companyData.qsa && companyData.qsa.length > 0) {
+            html += `
+                <div class="border-t pt-4">
+                    <h5 class="text-sm font-semibold text-gray-900 mb-3">Quadro de Sócios e Administradores</h5>
+                    <div class="space-y-3">
+                        ${companyData.qsa.map(socio => `
+                            <div class="bg-gray-50 p-3 rounded">
+                                <p class="text-sm font-medium text-gray-900">${socio.nome || 'N/A'}</p>
+                                <p class="text-xs text-gray-600">Qualificação: ${socio.qualificacao || 'N/A'}</p>
+                                ${socio.data_entrada ? `<p class="text-xs text-gray-600">Data de Entrada: ${formatDate(socio.data_entrada)}</p>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Filiais
+        if (companyData.filiais && companyData.filiais.length > 0) {
+            html += `
+                <div class="border-t pt-4">
+                    <h5 class="text-sm font-semibold text-gray-900 mb-3">Filiais (${companyData.filiais.length})</h5>
+                    <div class="space-y-2 max-h-60 overflow-y-auto">
+                        ${companyData.filiais.map(filial => `
+                            <div class="bg-gray-50 p-2 rounded text-sm">
+                                <p class="font-medium text-gray-900">${filial.cnpj || 'N/A'}</p>
+                                <p class="text-xs text-gray-600">${filial.municipio || ''} - ${filial.uf || ''}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    if (analysis.status === 'COMPLETED') {
+        html += `
+            <div class="border-t pt-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Nível de Risco</p>
+                        <div class="mt-1">${riskBadge}</div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-gray-500">Score</p>
+                        <p class="mt-1 text-2xl font-bold text-gray-900">${analysis.risk_score?.toFixed(1) || '0.0'}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-green-50 border-l-4 border-green-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-green-700">Análise concluída com sucesso!</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button onclick="window.location.href='/analyses/${analysis.id}'" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Ver Detalhes Completos
+                </button>
+                <button onclick="closeAnalysisModal()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Fechar
+                </button>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    content.innerHTML = html;
+}
+
+function closeAnalysisModal() {
+    document.getElementById('analysis-modal').classList.add('hidden');
+}
+</script>
+{% endblock %}

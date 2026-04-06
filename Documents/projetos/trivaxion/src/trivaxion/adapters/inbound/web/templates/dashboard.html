@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Trivaxion{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p class="mt-1 text-sm text-gray-600">Visão geral das análises da sua organização</p>
+    </div>
+
+    <div id="dashboard-stats" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4" 
+         hx-get="/web/partials/dashboard-stats" 
+         hx-trigger="load" 
+         hx-swap="innerHTML">
+        <div class="col-span-full flex justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <h2 class="text-lg font-medium text-gray-900 mb-4">Análises Recentes</h2>
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul id="recent-analyses" class="divide-y divide-gray-200"
+                hx-get="/web/partials/recent-analyses" 
+                hx-trigger="load" 
+                hx-swap="innerHTML">
+                <li class="px-6 py-4 text-center text-gray-500">
+                    Carregando...
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

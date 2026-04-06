@@ -1,0 +1,561 @@
+{% extends "base.html" %}
+
+{% block title %}Análise {{ analysis.cnpj }} - Trivaxion{% endblock %}
+
+{% block extra_head %}
+<style>
+    .tooltip-container {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .tooltip-icon {
+        margin-left: 4px;
+        cursor: help;
+        color: #6B7280;
+        font-size: 14px;
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        border: 1px solid #D1D5DB;
+        background-color: #F3F4F6;
+    }
+    
+    .tooltip-icon:hover {
+        background-color: #E5E7EB;
+        border-color: #9CA3AF;
+    }
+    
+    .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        z-index: 1000;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #1F2937;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.4;
+        width: 250px;
+        text-align: left;
+        transition: opacity 0.3s;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #1F2937 transparent transparent transparent;
+    }
+    
+    .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <a href="/analyses" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Voltar</a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">Análise - {{ analysis.cnpj }}</h1>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Informações da Empresa</h3>
+                    {% if analysis.company_data %}
+                    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    CNPJ
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Número de identificação da empresa no governo. É como se fosse o CPF da empresa, um número único que identifica ela.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900 font-mono">{{ analysis.cnpj }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Situação Cadastral
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Mostra se a empresa está funcionando normalmente (ativa) ou se está fechada, suspensa ou com problemas no cadastro.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if analysis.company_data.situacao_cadastral == 'ativa' %}bg-green-100 text-green-800
+                                    {% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ analysis.company_data.situacao_cadastral | upper }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Razão Social
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Nome oficial e completo da empresa registrado no governo. É o nome verdadeiro que aparece nos documentos.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.razao_social }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Nome Fantasia
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Nome popular pelo qual a empresa é conhecida. É o nome que aparece na fachada da loja ou no dia a dia.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.nome_fantasia or '-' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Data de Abertura
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Dia em que a empresa foi criada e começou a funcionar oficialmente.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.data_abertura | format_date }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Natureza Jurídica
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Tipo de empresa (exemplo: MEI, Ltda, SA). Define como a empresa é organizada e suas regras de funcionamento.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.natureza_juridica or '-' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    CNAE Principal
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Código que indica a atividade principal da empresa. Mostra o que a empresa faz (exemplo: comércio, serviços, indústria).</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.cnae_principal or '-' }}</dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Endereço
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Local onde a empresa está localizada. É o endereço completo com rua, número, bairro e cidade.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {{ analysis.company_data.logradouro or '' }}{% if analysis.company_data.numero %}, {{ analysis.company_data.numero }}{% endif %}{% if analysis.company_data.complemento %} - {{ analysis.company_data.complemento }}{% endif %}<br>
+                                {{ analysis.company_data.bairro or '' }}{% if analysis.company_data.bairro and analysis.company_data.municipio %} - {% endif %}{{ analysis.company_data.municipio or '' }}/{{ analysis.company_data.uf or '' }}<br>
+                                CEP: {{ analysis.company_data.cep or '-' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Telefone
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Número de telefone para entrar em contato com a empresa.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.telefone or '-' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    E-mail
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Endereço de e-mail para enviar mensagens para a empresa.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.email or '-' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Capital Social
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Valor em dinheiro que os donos investiram para abrir a empresa. Mostra o tamanho do investimento inicial.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{% if analysis.company_data.capital_social %}R$ {{ "{:,.2f}".format(analysis.company_data.capital_social) }}{% else %}-{% endif %}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Porte
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Tamanho da empresa (pequena, média ou grande). Define o porte baseado no faturamento anual.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.company_data.porte or '-' }}</dd>
+                        </div>
+                    </dl>
+                    {% else %}
+                    <p class="text-sm text-gray-500">Dados da empresa não disponíveis</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if filiais and (filiais.matriz or filiais.filiais) %}
+            <div class="bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <span class="tooltip-container">
+                            Filiais e Estabelecimentos
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text">Lista de todos os locais onde a empresa funciona. A matriz é o local principal e as filiais são as outras unidades da mesma empresa.</span>
+                        </span>
+                    </h3>
+                    
+                    {% if filiais.matriz %}
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Matriz</h4>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="grid grid-cols-1 gap-3">
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">CNPJ:</span>
+                                    <span class="text-sm text-gray-900 font-mono ml-2">{{ filiais.matriz.cnpj_formatado }}</span>
+                                    <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">MATRIZ</span>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">Razão Social:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ filiais.matriz.razao_social }}</span>
+                                </div>
+                                {% if filiais.matriz.nome_fantasia %}
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">Nome Fantasia:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ filiais.matriz.nome_fantasia }}</span>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">Endereço:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ filiais.matriz.logradouro }}, {{ filiais.matriz.numero }} - {{ filiais.matriz.bairro }} - {{ filiais.matriz.municipio }}/{{ filiais.matriz.uf }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if filiais.filiais %}
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Filiais ({{ filiais.total_filiais }})</h4>
+                        <div class="space-y-3 max-h-96 overflow-y-auto">
+                            {% for filial in filiais.filiais %}
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <div class="grid grid-cols-1 gap-2">
+                                    <div>
+                                        <span class="text-xs font-medium text-gray-500">CNPJ:</span>
+                                        <span class="text-sm text-gray-900 font-mono ml-2">{{ filial.cnpj_formatado }}</span>
+                                        <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            {% if filial.situacao_cadastral == '02' %}bg-green-100 text-green-800
+                                            {% else %}bg-red-100 text-red-800{% endif %}">
+                                            {% if filial.situacao_cadastral == '02' %}ATIVA{% else %}INATIVA{% endif %}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-gray-500">Razão Social:</span>
+                                        <span class="text-sm text-gray-900 ml-2">{{ filial.razao_social }}</span>
+                                    </div>
+                                    {% if filial.nome_fantasia %}
+                                    <div>
+                                        <span class="text-xs font-medium text-gray-500">Nome Fantasia:</span>
+                                        <span class="text-sm text-gray-900 ml-2">{{ filial.nome_fantasia }}</span>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <span class="text-xs font-medium text-gray-500">Endereço:</span>
+                                        <span class="text-sm text-gray-900 ml-2">{{ filial.logradouro or '-' }}{% if filial.numero %}, {{ filial.numero }}{% endif %} - {{ filial.bairro or '-' }} - {{ filial.municipio or '-' }}/{{ filial.uf or '-' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if analysis.company_data and analysis.company_data.socios %}
+            <div class="bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <span class="tooltip-container">
+                            QSA - Quadro de Sócios e Administradores
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text">Lista das pessoas que são donas ou administram a empresa. Mostra quem tem poder de decisão e responsabilidade sobre o negócio.</span>
+                        </span>
+                    </h3>
+                    <p class="text-sm text-gray-600 mb-4">Total de sócios: {{ analysis.company_data.socios|length }}</p>
+                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                        {% for socio in analysis.company_data.socios %}
+                        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div class="sm:col-span-2">
+                                    <span class="text-xs font-medium text-gray-500">Nome:</span>
+                                    <span class="text-sm text-gray-900 ml-2 font-semibold">{{ socio.nome or '-' }}</span>
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <span class="text-xs font-medium text-gray-500">Cargo:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ socio.qualificacao_completa or socio.qualificacao or '-' }}</span>
+                                </div>
+                                {% if socio.cpf_cnpj %}
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">CPF/CNPJ:</span>
+                                    <span class="text-sm text-gray-900 ml-2 font-mono">{{ socio.cpf_cnpj }}</span>
+                                </div>
+                                {% endif %}
+                                {% if socio.data_entrada %}
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">Data de Entrada:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ socio.data_entrada | format_date }}</span>
+                                </div>
+                                {% endif %}
+                                {% if socio.faixa_etaria %}
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">Faixa Etária:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ socio.faixa_etaria }}</span>
+                                </div>
+                                {% endif %}
+                                {% if socio.pais %}
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">País:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ socio.pais }}</span>
+                                </div>
+                                {% endif %}
+                                {% if socio.representante_legal %}
+                                <div class="sm:col-span-2">
+                                    <span class="text-xs font-medium text-gray-500">Representante Legal:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ socio.representante_legal }}</span>
+                                </div>
+                                {% endif %}
+                                {% if socio.nome_representante %}
+                                <div class="sm:col-span-2">
+                                    <span class="text-xs font-medium text-gray-500">Nome do Representante:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ socio.nome_representante }}</span>
+                                </div>
+                                {% endif %}
+                                {% if socio.percentual_capital %}
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500">Participação:</span>
+                                    <span class="text-sm text-gray-900 ml-2">{{ socio.percentual_capital }}%</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <span class="tooltip-container">
+                            Sinais de Risco
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text">Problemas ou alertas encontrados na análise da empresa. Cada sinal indica algo que pode representar um risco ao fazer negócio com ela.</span>
+                        </span>
+                    </h3>
+                    {% if analysis.risk_signals %}
+                    <ul class="space-y-3">
+                        {% for signal in analysis.risk_signals %}
+                        <li class="flex items-start">
+                            <span class="flex-shrink-0 h-5 w-5 text-{{ 'red' if signal.severity == 'high' else 'yellow' if signal.severity == 'medium' else 'blue' }}-500">
+                                ⚠
+                            </span>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900">{{ signal.signal_type }}</p>
+                                <p class="text-sm text-gray-500">{{ signal.description }}</p>
+                                <p class="text-xs text-gray-400 mt-1">Peso: {{ signal.weight }}</p>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-sm text-gray-500">Nenhum sinal de risco identificado</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-white shadow sm:rounded-lg" id="risk-score-card">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <span class="tooltip-container">
+                            Score de Risco
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text">Nota de 0 a 100 que indica o nível de risco da empresa. Quanto maior o número, maior o risco. Verde = baixo risco, Amarelo = risco médio, Vermelho = alto risco.</span>
+                        </span>
+                    </h3>
+                    {% if analysis.risk_level and analysis.risk_level != 'unknown' %}
+                    <div class="text-center">
+                        <div class="text-5xl font-bold 
+                            {% if analysis.risk_level == 'low' %}text-green-600
+                            {% elif analysis.risk_level == 'medium' %}text-yellow-600
+                            {% else %}text-red-600{% endif %}">
+                            {{ analysis.risk_score | round(1) }}
+                        </div>
+                        <div class="mt-2">
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
+                                {% if analysis.risk_level == 'low' %}bg-green-100 text-green-800
+                                {% elif analysis.risk_level == 'medium' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ analysis.risk_level | upper }}
+                            </span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center">
+                        <div class="flex items-center justify-center">
+                            <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <p class="mt-3 text-sm text-gray-500">Calculando score de risco...</p>
+                        <p class="mt-1 text-xs text-gray-400">A página será atualizada automaticamente</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        <span class="tooltip-container">
+                            Status da Análise
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text">Informações sobre o andamento da análise. Mostra se já foi concluída e quando foi criada.</span>
+                        </span>
+                    </h3>
+                    <dl class="space-y-3">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Status
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Situação atual da análise: se está sendo processada, se foi concluída com sucesso ou se teve algum erro.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if analysis.status == 'completed' %}bg-green-100 text-green-800
+                                    {% elif analysis.status == 'processing' %}bg-blue-100 text-blue-800
+                                    {% elif analysis.status == 'failed' %}bg-red-100 text-red-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ analysis.status }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Criada em
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Data e hora em que esta análise foi solicitada e começou a ser processada.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.created_at | format_datetime_full }}</dd>
+                        </div>
+                        {% if analysis.completed_at %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">
+                                <span class="tooltip-container">
+                                    Concluída em
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Data e hora em que a análise foi finalizada e todos os dados foram processados.</span>
+                                </span>
+                            </dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ analysis.completed_at | format_datetime_full }}</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Atualização em tempo real usando Server-Sent Events (SSE)
+(function() {
+    const analysisId = '{{ analysis.id }}';
+    const currentStatus = '{{ analysis.status }}';
+    const currentRiskLevel = '{{ analysis.risk_level }}';
+    
+    // Só conectar ao SSE se a análise ainda estiver em processamento
+    if (currentStatus === 'pending' || currentStatus === 'processing' || currentRiskLevel === 'unknown') {
+        console.log('Conectando ao SSE para atualizações em tempo real...');
+        
+        const eventSource = new EventSource(`/api/analyses/${analysisId}/events`);
+        
+        eventSource.onmessage = function(event) {
+            console.log('Evento recebido:', event.data);
+            
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Atualizar a página com os novos dados
+                if (data.type === 'analysis_updated') {
+                    console.log('Análise atualizada, recarregando página...');
+                    window.location.reload();
+                } else if (data.type === 'analysis_completed') {
+                    console.log('Análise concluída, recarregando página...');
+                    eventSource.close();
+                    window.location.reload();
+                } else if (data.type === 'risk_calculated') {
+                    console.log('Score de risco calculado, recarregando página...');
+                    window.location.reload();
+                }
+            } catch (e) {
+                console.error('Erro ao processar evento:', e);
+            }
+        };
+        
+        eventSource.onerror = function(error) {
+            console.error('Erro no SSE:', error);
+            eventSource.close();
+            
+            // Tentar reconectar após 5 segundos
+            setTimeout(function() {
+                if (currentStatus === 'pending' || currentStatus === 'processing') {
+                    console.log('Tentando reconectar...');
+                    window.location.reload();
+                }
+            }, 5000);
+        };
+        
+        // Fechar conexão quando o usuário sair da página
+        window.addEventListener('beforeunload', function() {
+            eventSource.close();
+        });
+    }
+})();
+</script>
+{% endblock %}
