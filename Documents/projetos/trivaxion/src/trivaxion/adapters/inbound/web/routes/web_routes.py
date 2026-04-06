@@ -96,6 +96,9 @@ class SimpleTemplates:
 
 templates = SimpleTemplates(env)
 
+# Import use cases
+from trivaxion.application.use_cases.source_use_cases import GetSourcesUseCase
+
 def get_user_from_session(request: Request):
     """Get user from session"""
     user = request.session.get("user")
@@ -210,14 +213,92 @@ async def dashboard(request: Request):
         "active_page": "dashboard"
     })
 
+@router.get("/web/api/sources")
+async def get_sources_api(request: Request):
+    """API endpoint to get sources configuration"""
+    # This endpoint is used by the frontend and should be accessible
+    # when the user is authenticated on the page itself
+    
+    try:
+        from trivaxion.infrastructure.di.container import get_container
+        container = get_container()
+        
+        use_case = GetSourcesUseCase(container.get_source_config_provider())
+        sources_response = await use_case.execute()
+        
+        # Convert to serializable format
+        sources_data = []
+        for source in sources_response.sources:
+            sources_data.append({
+                "id": source.id,
+                "name": source.name,
+                "icon": source.icon,
+                "category": source.category,
+                "price": source.price,
+                "status": source.status,
+                "delivery_description": source.delivery_description,
+                "simple_description": source.simple_description,
+                "what_it_is": source.what_it_is,
+                "why_important": source.why_important,
+                "main_data": source.main_data,
+                "who_needs": source.who_needs,
+                "color": source.color,
+                "badge_text": source.badge_text
+            })
+        
+        response_data = {
+            "sources": sources_data,
+            "available_count": sources_response.available_count,
+            "coming_soon_count": sources_response.coming_soon_count,
+            "total_count": sources_response.total_count
+        }
+        
+        # Debug logging
+        print(f"Sources API returning: {len(sources_data)} sources")
+        print(f"Available: {sources_response.available_count}, Coming soon: {sources_response.coming_soon_count}")
+        
+        return JSONResponse(response_data)
+        
+    except Exception as e:
+        print(f"Error in sources API: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @router.get("/analyses/new", response_class=HTMLResponse)
 async def new_analysis_page(request: Request):
-    """New analysis page"""
+    """New analysis page - CNPJ entry"""
     user = get_user_from_session(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     
-    return templates.TemplateResponse("new_analysis.html", {
+    return templates.TemplateResponse("enter_cnpj.html", {
+        "request": request,
+        "user": user,
+        "active_page": "new_analysis"
+    })
+
+@router.get("/analyses/select-sources", response_class=HTMLResponse)
+async def select_sources_page(request: Request):
+    """Select sources page"""
+    user = get_user_from_session(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("select_sources.html", {
+        "request": request,
+        "user": user,
+        "active_page": "new_analysis"
+    })
+
+@router.get("/analyses/confirm", response_class=HTMLResponse)
+async def confirm_analysis_page(request: Request):
+    """Confirm analysis page"""
+    user = get_user_from_session(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("confirm_analysis.html", {
         "request": request,
         "user": user,
         "active_page": "new_analysis"
@@ -459,94 +540,107 @@ async def dashboard_stats_partial(request: Request):
     if not user:
         return HTMLResponse("<p class='text-red-500'>Não autenticado</p>", status_code=401)
     
-    token = request.session.get("access_token")
-    if not token:
-        return HTMLResponse("<p class='text-red-500'>Token não encontrado</p>", status_code=401)
+    # Use use cases directly instead of HTTP calls
+    from trivaxion.infrastructure.db.base import async_session_maker
+    from trivaxion.adapters.outbound.persistence.sqlalchemy_repositories import SQLAlchemyAnalysisRepository
+    from trivaxion.application.use_cases.analysis_use_cases import GetDashboardSummaryUseCase
+    from trivaxion.infrastructure.db.models import UserModel
+    from sqlalchemy import select
     
-    # Call API to get dashboard summary
-    async with httpx.AsyncClient() as client:
+    async with async_session_maker() as session:
+        analysis_repo = SQLAlchemyAnalysisRepository(session)
+        
         try:
-            response = await client.get(
-                "http://localhost:8000/api/v1/dashboard/summary",
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            if response.status_code == 200:
-                data = response.json()
-                html = f"""
-                <div class="bg-white overflow-hidden shadow rounded-lg">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                </svg>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Total de Análises</dt>
-                                    <dd class="text-lg font-medium text-gray-900">{data['total_analyses']}</dd>
-                                </dl>
-                            </div>
+            # Buscar organization_id do usuário
+            org_id = user.get("organization_id")
+            if not org_id:
+                # Se não tiver na sessão, buscar do banco
+                user_result = await session.execute(
+                    select(UserModel).where(UserModel.id == user["id"])
+                )
+                user_model = user_result.scalar_one_or_none()
+                if user_model:
+                    org_id = str(user_model.organization_id)
+                else:
+                    return HTMLResponse("<p class='text-red-500'>Organização do usuário não encontrada</p>", status_code=404)
+            
+            use_case = GetDashboardSummaryUseCase(analysis_repository=analysis_repo)
+            summary = await use_case.execute(org_id)
+            
+            html = f"""
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total de Análises</dt>
+                                <dd class="text-lg font-medium text-gray-900">{summary.total_analyses}</dd>
+                            </dl>
                         </div>
                     </div>
                 </div>
-                <div class="bg-white overflow-hidden shadow rounded-lg">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Este Mês</dt>
-                                    <dd class="text-lg font-medium text-gray-900">{data['analyses_this_month']}</dd>
-                                </dl>
-                            </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Este Mês</dt>
+                                <dd class="text-lg font-medium text-gray-900">{summary.analyses_this_month}</dd>
+                            </dl>
                         </div>
                     </div>
                 </div>
-                <div class="bg-white overflow-hidden shadow rounded-lg">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Em Processamento</dt>
-                                    <dd class="text-lg font-medium text-gray-900">{data['processing']}</dd>
-                                </dl>
-                            </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Em Processamento</dt>
+                                <dd class="text-lg font-medium text-gray-900">{summary.processing}</dd>
+                            </dl>
                         </div>
                     </div>
                 </div>
-                <div class="bg-white overflow-hidden shadow rounded-lg">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Concluídas Hoje</dt>
-                                    <dd class="text-lg font-medium text-gray-900">{data['completed_today']}</dd>
-                                </dl>
-                            </div>
+            </div>
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Concluídas Hoje</dt>
+                                <dd class="text-lg font-medium text-gray-900">{summary.completed_today}</dd>
+                            </dl>
                         </div>
                     </div>
                 </div>
-                """
-                return HTMLResponse(html)
-            else:
-                return HTMLResponse("<p class='text-red-500'>Erro ao carregar estatísticas</p>")
+            </div>
+            """
+            return HTMLResponse(html)
+            
         except Exception as e:
-            return HTMLResponse(f"<p class='text-red-500'>Erro: {str(e)}</p>")
+            return HTMLResponse(f"<p class='text-red-500'>Erro ao carregar estatísticas: {str(e)}</p>")
 
 @router.get("/web/partials/recent-analyses", response_class=HTMLResponse)
 async def recent_analyses_partial(request: Request):
@@ -555,74 +649,85 @@ async def recent_analyses_partial(request: Request):
     if not user:
         return HTMLResponse("<li class='px-6 py-4 text-red-500'>Não autenticado</li>", status_code=401)
     
-    token = request.session.get("access_token")
-    if not token:
-        return HTMLResponse("<li class='px-6 py-4 text-red-500'>Token não encontrado</li>", status_code=401)
+    # Use repository directly instead of HTTP calls (like the API does)
+    from trivaxion.infrastructure.db.base import async_session_maker
+    from trivaxion.adapters.outbound.persistence.sqlalchemy_repositories import SQLAlchemyAnalysisRepository
+    from trivaxion.infrastructure.db.models import UserModel
+    from sqlalchemy import select
     
-    # Call API to get recent analyses
-    async with httpx.AsyncClient() as client:
+    async with async_session_maker() as session:
+        analysis_repo = SQLAlchemyAnalysisRepository(session)
+        
         try:
-            response = await client.get(
-                "http://localhost:8000/api/v1/analyses?limit=10",
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            if response.status_code == 200:
-                data = response.json()
-                
-                # Check if data is a list or dict with results
-                if isinstance(data, dict):
-                    analyses = data.get('items', data.get('results', []))
+            # Buscar organization_id do usuário
+            org_id = user.get("organization_id")
+            if not org_id:
+                # Se não tiver na sessão, buscar do banco
+                user_result = await session.execute(
+                    select(UserModel).where(UserModel.id == user["id"])
+                )
+                user_model = user_result.scalar_one_or_none()
+                if user_model:
+                    org_id = str(user_model.organization_id)
                 else:
-                    analyses = data if isinstance(data, list) else []
+                    return HTMLResponse("<li class='px-6 py-4 text-red-500'>Organização do usuário não encontrada</li>", status_code=404)
+            
+            # Buscar análises diretamente do repositório (como o API faz)
+            from trivaxion.domain.shared.value_objects import EntityId
+            org_entity_id = EntityId.from_string(org_id)
+            
+            analyses = await analysis_repo.find_by_organization(
+                org_entity_id,
+                limit=10,
+            )
+            
+            if not analyses:
+                return HTMLResponse("<li class='px-6 py-4 text-center text-gray-500'>Nenhuma análise encontrada</li>")
+            
+            html = ""
+            for analysis in analyses:
+                # Formatar CNPJ
+                cnpj = str(analysis.cnpj)
+                if len(cnpj) == 14:
+                    cnpj_formatado = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:14]}"
+                else:
+                    cnpj_formatado = cnpj
                 
-                if not analyses:
-                    return HTMLResponse("<li class='px-6 py-4 text-center text-gray-500'>Nenhuma análise encontrada</li>")
+                status_color = "green" if analysis.status.value == "COMPLETED" else "yellow" if analysis.status.value == "PROCESSING" else "gray"
+                risk_color = "red" if analysis.risk_level.value == "HIGH" else "yellow" if analysis.risk_level.value == "MEDIUM" else "green"
                 
-                html = ""
-                for analysis in analyses:
-                    # Safely get values with defaults
-                    analysis_id = analysis.get('id', '') if isinstance(analysis, dict) else ''
-                    cnpj = analysis.get('cnpj', 'N/A') if isinstance(analysis, dict) else 'N/A'
-                    status = analysis.get('status', 'N/A') if isinstance(analysis, dict) else 'N/A'
-                    risk_level = analysis.get('risk_level', 'N/A') if isinstance(analysis, dict) else 'N/A'
-                    risk_score = analysis.get('risk_score', 0) if isinstance(analysis, dict) else 0
-                    
-                    status_color = "green" if status == "COMPLETED" else "yellow" if status == "PROCESSING" else "gray"
-                    risk_color = "red" if risk_level == "HIGH" else "yellow" if risk_level == "MEDIUM" else "green"
-                    
-                    html += f"""
-                    <li>
-                        <a href="/analyses/{analysis_id}" class="block hover:bg-gray-50">
-                            <div class="px-4 py-4 sm:px-6">
-                                <div class="flex items-center justify-between">
-                                    <p class="text-sm font-medium text-blue-600 truncate">{cnpj}</p>
-                                    <div class="ml-2 flex-shrink-0 flex">
-                                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{status_color}-100 text-{status_color}-800">
-                                            {status}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="mt-2 sm:flex sm:justify-between">
-                                    <div class="sm:flex">
-                                        <p class="flex items-center text-sm text-gray-500">
-                                            Score: {risk_score:.1f}
-                                        </p>
-                                    </div>
-                                    <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{risk_color}-100 text-{risk_color}-800">
-                                            {risk_level}
-                                        </p>
-                                    </div>
+                html += f"""
+                <li>
+                    <a href="/analyses/{analysis.id}" class="block hover:bg-gray-50">
+                        <div class="px-4 py-4 sm:px-6">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-medium text-blue-600 truncate">{cnpj_formatado}</p>
+                                <div class="ml-2 flex-shrink-0 flex">
+                                    <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{status_color}-100 text-{status_color}-800">
+                                        {analysis.status.value}
+                                    </p>
                                 </div>
                             </div>
-                        </a>
-                    </li>
-                    """
-                return HTMLResponse(html)
-            else:
-                return HTMLResponse("<li class='px-6 py-4 text-red-500'>Erro ao carregar análises</li>")
+                            <div class="mt-2 sm:flex sm:justify-between">
+                                <div class="sm:flex">
+                                    <p class="flex items-center text-sm text-gray-500">
+                                        Score: {analysis.risk_score:.1f}
+                                    </p>
+                                </div>
+                                <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                                    <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{risk_color}-100 text-{risk_color}-800">
+                                        {analysis.risk_level.value}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                """
+            return HTMLResponse(html)
+            
         except Exception as e:
-            return HTMLResponse(f"<li class='px-6 py-4 text-red-500'>Erro: {str(e)}</li>")
+            return HTMLResponse(f"<li class='px-6 py-4 text-red-500'>Erro ao carregar análises: {str(e)}</li>")
 
 @router.get("/web/partials/analyses-list", response_class=HTMLResponse)
 async def analyses_list_partial(request: Request):
@@ -631,81 +736,88 @@ async def analyses_list_partial(request: Request):
     if not user:
         return HTMLResponse("<li class='px-6 py-4 text-red-500'>Não autenticado</li>", status_code=401)
     
-    token = request.session.get("access_token")
-    if not token:
-        return HTMLResponse("<li class='px-6 py-4 text-red-500'>Token não encontrado</li>", status_code=401)
+    # Use repository directly instead of HTTP calls (like the API does)
+    from trivaxion.infrastructure.db.base import async_session_maker
+    from trivaxion.adapters.outbound.persistence.sqlalchemy_repositories import SQLAlchemyAnalysisRepository
+    from trivaxion.infrastructure.db.models import UserModel
+    from sqlalchemy import select
     
-    # Call API to get all analyses
-    async with httpx.AsyncClient() as client:
+    async with async_session_maker() as session:
+        analysis_repo = SQLAlchemyAnalysisRepository(session)
+        
         try:
-            response = await client.get(
-                "http://localhost:8000/api/v1/analyses?limit=100",
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            if response.status_code == 200:
-                data = response.json()
-                
-                # Check if data is a list or dict with results
-                if isinstance(data, dict):
-                    analyses = data.get('items', data.get('results', []))
+            # Buscar organization_id do usuário
+            org_id = user.get("organization_id")
+            if not org_id:
+                # Se não tiver na sessão, buscar do banco
+                user_result = await session.execute(
+                    select(UserModel).where(UserModel.id == user["id"])
+                )
+                user_model = user_result.scalar_one_or_none()
+                if user_model:
+                    org_id = str(user_model.organization_id)
                 else:
-                    analyses = data if isinstance(data, list) else []
+                    return HTMLResponse("<li class='px-6 py-4 text-red-500'>Organização do usuário não encontrada</li>", status_code=404)
+            
+            # Buscar análises diretamente do repositório (como o API faz)
+            from trivaxion.domain.shared.value_objects import EntityId
+            org_entity_id = EntityId.from_string(org_id)
+            
+            analyses = await analysis_repo.find_by_organization(
+                org_entity_id,
+                limit=100,
+            )
+            
+            if not analyses:
+                return HTMLResponse("<li class='px-6 py-4 text-center text-gray-500'>Nenhuma análise encontrada. Crie sua primeira análise!</li>")
+            
+            html = ""
+            for analysis in analyses:
+                # Formatar CNPJ
+                cnpj = str(analysis.cnpj)
+                if len(cnpj) == 14:
+                    cnpj_formatado = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:14]}"
+                else:
+                    cnpj_formatado = cnpj
                 
-                if not analyses:
-                    return HTMLResponse("<li class='px-6 py-4 text-center text-gray-500'>Nenhuma análise encontrada. Crie sua primeira análise!</li>")
+                # Format date
+                date_str = analysis.created_at.strftime("%d/%m/%Y") if analysis.created_at else 'N/A'
                 
-                html = ""
-                for analysis in analyses:
-                    # Safely get values with defaults
-                    analysis_id = analysis.get('id', '') if isinstance(analysis, dict) else ''
-                    cnpj = analysis.get('cnpj', 'N/A') if isinstance(analysis, dict) else 'N/A'
-                    status = analysis.get('status', 'N/A') if isinstance(analysis, dict) else 'N/A'
-                    risk_level = analysis.get('risk_level', 'N/A') if isinstance(analysis, dict) else 'N/A'
-                    risk_score = analysis.get('risk_score', 0) if isinstance(analysis, dict) else 0
-                    created_at = analysis.get('created_at', '') if isinstance(analysis, dict) else ''
-                    
-                    # Format date
-                    date_str = created_at[:10] if created_at else 'N/A'
-                    if date_str != 'N/A' and '-' in date_str:
-                        parts = date_str.split('-')
-                        date_str = f"{parts[2]}/{parts[1]}/{parts[0]}"
-                    
-                    status_color = "green" if status == "COMPLETED" else "yellow" if status == "PROCESSING" else "gray"
-                    risk_color = "red" if risk_level == "HIGH" else "yellow" if risk_level == "MEDIUM" else "green"
-                    
-                    html += f"""
-                    <li>
-                        <a href="/analyses/{analysis_id}" class="block hover:bg-gray-50">
-                            <div class="px-4 py-4 sm:px-6">
-                                <div class="flex items-center justify-between">
-                                    <p class="text-sm font-medium text-blue-600 truncate">{cnpj}</p>
-                                    <div class="ml-2 flex-shrink-0 flex">
-                                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{status_color}-100 text-{status_color}-800">
-                                            {status}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="mt-2 sm:flex sm:justify-between">
-                                    <div class="sm:flex">
-                                        <p class="flex items-center text-sm text-gray-500">
-                                            Score: {risk_score:.1f} | Criada em: {date_str}
-                                        </p>
-                                    </div>
-                                    <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{risk_color}-100 text-{risk_color}-800">
-                                            {risk_level}
-                                        </p>
-                                    </div>
+                status_color = "green" if analysis.status.value == "COMPLETED" else "yellow" if analysis.status.value == "PROCESSING" else "gray"
+                risk_color = "red" if analysis.risk_level.value == "HIGH" else "yellow" if analysis.risk_level.value == "MEDIUM" else "green"
+                
+                html += f"""
+                <li>
+                    <a href="/analyses/{analysis.id}" class="block hover:bg-gray-50">
+                        <div class="px-4 py-4 sm:px-6">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-medium text-blue-600 truncate">{cnpj_formatado}</p>
+                                <div class="ml-2 flex-shrink-0 flex">
+                                    <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{status_color}-100 text-{status_color}-800">
+                                        {analysis.status.value}
+                                    </p>
                                 </div>
                             </div>
-                        </a>
-                    </li>
-                    """
-                return HTMLResponse(html)
-            else:
-                return HTMLResponse("<li class='px-6 py-4 text-red-500'>Erro ao carregar análises</li>")
+                            <div class="mt-2 sm:flex sm:justify-between">
+                                <div class="sm:flex">
+                                    <p class="flex items-center text-sm text-gray-500">
+                                        Score: {analysis.risk_score:.1f} | Criada em: {date_str}
+                                    </p>
+                                </div>
+                                <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                                    <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{risk_color}-100 text-{risk_color}-800">
+                                        {analysis.risk_level.value}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                """
+            return HTMLResponse(html)
+            
         except Exception as e:
-            return HTMLResponse(f"<li class='px-6 py-4 text-red-500'>Erro: {str(e)}</li>")
+            return HTMLResponse(f"<li class='px-6 py-4 text-red-500'>Erro ao carregar análises: {str(e)}</li>")
     
 @router.get("/web/partials/companies-list", response_class=HTMLResponse)
 async def companies_list_partial(request: Request):

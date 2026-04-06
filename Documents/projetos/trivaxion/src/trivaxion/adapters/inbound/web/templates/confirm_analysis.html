@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar Análise - Trivaxion{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <a href="/analyses/select-sources" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Voltar</a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">Confirmar Análise</h1>
+        <p class="mt-1 text-sm text-gray-600">Revise as informações antes de criar a análise</p>
+    </div>
+
+    <!-- CNPJ and Sources Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- CNPJ Information -->
+        <div class="bg-white border rounded-lg p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">📋 Empresa a ser Analisada</h3>
+            <div id="cnpjSummary" class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-sm text-gray-600">CNPJ:</span>
+                    <span id="cnpjDisplay" class="text-sm font-medium text-gray-900">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sources Summary -->
+        <div class="bg-white border rounded-lg p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">🔍 Fontes Selecionadas</h3>
+            <div id="sourcesSummary" class="space-y-2">
+                <!-- Sources will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Details -->
+    <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-900">Detalhes da Análise</h3>
+                <p class="mt-1 text-sm text-gray-600">
+                    A análise será processada com as fontes selecionadas acima. 
+                    O tempo estimado de processamento é de 2-5 minutos por fonte.
+                </p>
+            </div>
+
+            <div id="error-message" class="hidden mb-6">
+                <div class="rounded-md bg-red-50 p-4">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800" id="error-text"></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="success-message" class="hidden mb-6">
+                <div class="rounded-md bg-green-50 p-4">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-green-800">✅ Análise Criada com Sucesso!</h3>
+                            <div class="mt-2 text-sm text-green-700">
+                                <p>Você será redirecionado para a página da análise em instantes...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form id="confirmForm" class="space-y-6">
+                <div>
+                    <button type="submit" id="submitBtn"
+                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        🚀 Criar Análise Agora
+                    </button>
+                    <div class="mt-3">
+                        <button type="button" onclick="window.location.href='/analyses/select-sources'" 
+                                class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Alterar Fontes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Source descriptions
+const sourceDescriptions = {
+    'receita_federal': '📋 Receita Federal',
+    'certidao_trabalhista': '🏢 Certidão Trabalhista',
+    'fgts': '💰 FGTS'
+};
+
+// Format CNPJ for display
+function formatCnpj(cnpj) {
+    if (cnpj.length === 14) {
+        return cnpj.replace(/^(\d{2})(\d)/, '$1.$2')
+                  .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+                  .replace(/\.(\d{3})(\d)/, '.$1/$2')
+                  .replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    return cnpj;
+}
+
+// Load and display analysis summary
+function loadSummary() {
+    const savedCnpj = sessionStorage.getItem('analysisCnpj');
+    const savedSources = sessionStorage.getItem('selectedSources');
+    
+    // Display CNPJ
+    if (savedCnpj) {
+        document.getElementById('cnpjDisplay').textContent = formatCnpj(savedCnpj);
+    }
+    
+    // Display sources
+    if (savedSources) {
+        const sources = JSON.parse(savedSources);
+        const sourcesSummary = document.getElementById('sourcesSummary');
+        
+        if (sources.length > 0) {
+            sourcesSummary.innerHTML = sources.map(source => {
+                const description = sourceDescriptions[source] || source;
+                return `
+                    <div class="flex justify-between items-center py-1">
+                        <span class="text-sm text-gray-600">${description}</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            ✓ Selecionado
+                        </span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add source count
+            sourcesSummary.innerHTML += `
+                <div class="pt-2 mt-2 border-t border-gray-200">
+                    <div class="flex justify-between">
+                        <span class="text-sm font-medium text-gray-900">Total de fontes:</span>
+                        <span class="text-sm font-medium text-blue-600">${sources.length}</span>
+                    </div>
+                </div>
+            `;
+        }
+    }
+}
+
+// Check if we have required data
+document.addEventListener('DOMContentLoaded', () => {
+    const savedCnpj = sessionStorage.getItem('analysisCnpj');
+    const savedSources = sessionStorage.getItem('selectedSources');
+    
+    if (!savedCnpj || !savedSources) {
+        // Redirect to start if missing data
+        window.location.href = '/analyses/new';
+        return;
+    }
+    
+    // Parse and validate sources
+    const sources = JSON.parse(savedSources);
+    if (sources.length === 0) {
+        // Redirect to sources selection if no sources selected
+        window.location.href = '/analyses/select-sources';
+        return;
+    }
+    
+    loadSummary();
+});
+
+// Handle form submission
+document.getElementById('confirmForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const cnpj = sessionStorage.getItem('analysisCnpj');
+    const selectedSources = JSON.parse(sessionStorage.getItem('selectedSources') || '[]');
+    const errorDiv = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const successDiv = document.getElementById('success-message');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // Check if token exists
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'Sessão expirada. Por favor, faça login novamente.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🚀 Criar Análise Agora';
+        // Redirect to login after a short delay
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
+    
+    errorDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Processando...';
+    
+    try {
+        console.log('Creating analysis with CNPJ:', cnpj);
+        console.log('Selected sources:', selectedSources);
+        
+        const response = await fetch('/api/v1/analyses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ 
+                cnpj: cnpj,
+                sources: selectedSources 
+            })
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Analysis created:', data);
+            
+            // Show success message
+            successDiv.classList.remove('hidden');
+            submitBtn.textContent = '✅ Análise Criada!';
+            
+            // Clear session storage
+            sessionStorage.removeItem('analysisCnpj');
+            sessionStorage.removeItem('selectedSources');
+            
+            // Redirect after a short delay
+            setTimeout(() => {
+                window.location.href = '/analyses/' + data.id;
+            }, 2000);
+        } else {
+            const errorData = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
+            console.error('Error response:', errorData);
+            
+            // Check if token expired
+            if (response.status === 401 && errorData.detail && errorData.detail.includes('expired')) {
+                // Clear expired token and redirect to login
+                localStorage.removeItem('access_token');
+                document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                window.location.href = '/login';
+                return;
+            }
+            
+            errorDiv.classList.remove('hidden');
+            errorText.textContent = errorData.detail || 'Erro ao criar análise';
+            submitBtn.disabled = false;
+            submitBtn.textContent = '🚀 Criar Análise Agora';
+        }
+    } catch (error) {
+        console.error('Exception:', error);
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'Erro de conexão: ' + error.message;
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🚀 Criar Análise Agora';
+    }
+});
+</script>
+{% endblock %}

@@ -10,6 +10,19 @@
         <p class="mt-1 text-sm text-gray-600">Solicite uma análise de risco para uma empresa</p>
     </div>
 
+    <!-- Selected Sources Summary -->
+    <div id="selectedSourcesSummary" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 hidden">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-medium text-blue-900">Fontes Selecionadas</h3>
+                <div id="selectedSourcesList" class="text-sm text-blue-600 mt-1"></div>
+            </div>
+            <a href="/analyses/select-sources" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                Alterar Fontes
+            </a>
+        </div>
+    </div>
+
     <div class="bg-white shadow sm:rounded-lg">
         <div class="px-4 py-5 sm:p-6">
             <form id="analysisForm" class="space-y-6">
@@ -42,6 +55,12 @@
                             class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         Solicitar Análise
                     </button>
+                    <div class="mt-3">
+                        <a href="/analyses/select-sources" 
+                           class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 inline-block text-center">
+                            ⚙️ Selecionar Fontes de Dados
+                        </a>
+                    </div>
                 </div>
             </form>
         </div>
@@ -61,6 +80,29 @@ document.getElementById('cnpj').addEventListener('input', function(e) {
     e.target.value = value;
 });
 
+// Source descriptions
+const sourceDescriptions = {
+    'receita_federal': '📋 Receita Federal',
+    'certidao_trabalhista': '🏢 Certidão Trabalhista',
+    'fgts': '💰 FGTS'
+};
+
+// Load and display selected sources
+function loadSelectedSources() {
+    const savedSources = sessionStorage.getItem('selectedSources');
+    const summaryDiv = document.getElementById('selectedSourcesSummary');
+    const listDiv = document.getElementById('selectedSourcesList');
+    
+    if (savedSources) {
+        const sources = JSON.parse(savedSources);
+        if (sources.length > 0) {
+            const sourceNames = sources.map(source => sourceDescriptions[source] || source).join(', ');
+            listDiv.textContent = sourceNames;
+            summaryDiv.classList.remove('hidden');
+        }
+    }
+}
+
 document.getElementById('analysisForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -68,6 +110,20 @@ document.getElementById('analysisForm').addEventListener('submit', async (e) => 
     const errorDiv = document.getElementById('error-message');
     const errorText = document.getElementById('error-text');
     const submitBtn = e.target.querySelector('button[type="submit"]');
+    
+    // Check if token exists
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'Sessão expirada. Por favor, faça login novamente.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Solicitar Análise';
+        // Redirect to login after a short delay
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
     
     // Validate CNPJ length
     if (cnpjRaw.length !== 14) {
@@ -81,9 +137,12 @@ document.getElementById('analysisForm').addEventListener('submit', async (e) => 
     submitBtn.textContent = 'Processando...';
     
     try {
-        const token = localStorage.getItem('access_token');
         console.log('Creating analysis with CNPJ:', cnpjRaw);
         console.log('Token:', token ? 'Present' : 'Missing');
+        
+        // Get selected sources
+        const savedSources = sessionStorage.getItem('selectedSources');
+        const selectedSources = savedSources ? JSON.parse(savedSources) : ['receita_federal', 'certidao_trabalhista'];
         
         const response = await fetch('/api/v1/analyses', {
             method: 'POST',
@@ -91,7 +150,10 @@ document.getElementById('analysisForm').addEventListener('submit', async (e) => 
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + token
             },
-            body: JSON.stringify({ cnpj: cnpjRaw })
+            body: JSON.stringify({ 
+                cnpj: cnpjRaw,
+                sources: selectedSources 
+            })
         });
         
         console.log('Response status:', response.status);
@@ -99,10 +161,22 @@ document.getElementById('analysisForm').addEventListener('submit', async (e) => 
         if (response.ok) {
             const data = await response.json();
             console.log('Analysis created:', data);
+            // Clear selected sources after successful analysis
+            sessionStorage.removeItem('selectedSources');
             window.location.href = '/analyses/' + data.id;
         } else {
             const errorData = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
             console.error('Error response:', errorData);
+            
+            // Check if token expired
+            if (response.status === 401 && errorData.detail && errorData.detail.includes('expired')) {
+                // Clear expired token and redirect to login
+                localStorage.removeItem('access_token');
+                document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                window.location.href = '/login';
+                return;
+            }
+            
             errorDiv.classList.remove('hidden');
             errorText.textContent = errorData.detail || 'Erro ao solicitar análise';
             submitBtn.disabled = false;
@@ -116,5 +190,8 @@ document.getElementById('analysisForm').addEventListener('submit', async (e) => 
         submitBtn.textContent = 'Solicitar Análise';
     }
 });
+
+// Load selected sources on page load
+document.addEventListener('DOMContentLoaded', loadSelectedSources);
 </script>
 {% endblock %}

@@ -24,6 +24,7 @@ class RiskLevel(str, Enum):
 class DataSource(str, Enum):
     RECEITA_FEDERAL = "receita_federal"
     CERTIDAO_TRABALHISTA = "certidao_trabalhista"
+    FGTS = "fgts"
 
 
 @dataclass

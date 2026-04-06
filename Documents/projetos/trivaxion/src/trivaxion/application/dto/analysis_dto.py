@@ -1,9 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class CreateAnalysisRequest:
     cnpj: str
+    sources: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -40,7 +41,9 @@ class AnalysisDetailResponse:
 class DashboardSummary:
     total_analyses: int
     analyses_this_month: int
-    high_risk_count: int
-    medium_risk_count: int
-    low_risk_count: int
-    recent_analyses: list[AnalysisResponse]
+    processing: int
+    completed_today: int
+    high_risk_count: int = 0
+    medium_risk_count: int = 0
+    low_risk_count: int = 0
+    recent_analyses: list[AnalysisResponse] = field(default_factory=list)

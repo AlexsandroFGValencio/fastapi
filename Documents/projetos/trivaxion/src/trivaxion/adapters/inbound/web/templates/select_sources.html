@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+
+{% block title %}Selecionar Fontes - Trivaxion{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <a href="/analyses/new" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Voltar</a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">Selecionar Fontes de Análise</h1>
+        <p class="mt-1 text-sm text-gray-600">Escolha as fontes de dados para sua análise (mínimo 1 fonte)</p>
+    </div>
+
+    <!-- CNPJ Information -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-900">CNPJ a ser analisado</h3>
+                <div id="cnpjDisplay" class="text-sm text-blue-600 mt-1">--</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex gap-6">
+        <!-- Main Content - Sources List -->
+        <div class="flex-1">
+            <form id="sourcesForm" class="space-y-6">
+                <div id="sourcesContainer">
+                    <!-- Sources will be loaded dynamically here -->
+                    <div class="text-center py-8">
+                        <div class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Carregando fontes...
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Fixed Sidebar - Summary -->
+        <div class="w-80 flex-shrink-0">
+            <div class="sticky top-6 space-y-4">
+                <!-- Summary Card -->
+                <div class="bg-white border rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">📋 Resumo da Seleção</h3>
+                    
+                    <!-- Counters -->
+                    <div class="grid grid-cols-1 gap-4 mb-6">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-blue-600" id="selectedCount">0</div>
+                            <div class="text-sm text-blue-600">Fontes Selecionadas</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-600" id="availableCount">0</div>
+                            <div class="text-sm text-green-600">Disponíveis Agora</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-gray-600" id="comingSoonCount">0</div>
+                            <div class="text-sm text-gray-600">Em Breve</div>
+                        </div>
+                    </div>
+
+                    <!-- Price Summary -->
+                    <div class="border-t border-gray-200 pt-4 mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm text-gray-600">Valor Total:</span>
+                            <span class="text-lg font-bold text-green-600" id="totalPrice">R$ 0,00</span>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <span id="freeCount">0</span> gratuita(s) + <span id="paidCount">0</span> paga(s)
+                        </div>
+                    </div>
+
+                    <!-- Selected Sources List -->
+                    <div class="border-t border-gray-200 pt-4 mb-6">
+                        <h4 class="text-sm font-medium text-gray-900 mb-3">Fontes Selecionadas:</h4>
+                        <div id="selectedSourcesList" class="space-y-2 max-h-48 overflow-y-auto">
+                            <div class="text-sm text-gray-500 italic">Nenhuma fonte selecionada</div>
+                        </div>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div id="selectionError" class="hidden mb-4">
+                        <div class="rounded-md bg-red-50 p-3">
+                            <div class="flex">
+                                <div class="ml-2">
+                                    <h3 class="text-sm font-medium text-red-800">⚠️ Seleção Obrigatória</h3>
+                                    <div class="mt-1 text-xs text-red-700">
+                                        Você deve selecionar pelo menos 1 fonte para continuar.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-3">
+                        <button type="button" id="continueBtn" disabled
+                                class="w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-md text-sm font-medium cursor-not-allowed transition-colors">
+                            Continuar para Confirmação
+                        </button>
+                        <button type="button" onclick="window.location.href='/analyses/new'" 
+                                class="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Help Card -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-blue-900 mb-2">💡 Dica Rápida</h4>
+                    <div class="text-xs text-blue-700">
+                        <p class="mb-2">• <strong>Essencial:</strong> Dados básicos da empresa</p>
+                        <p class="mb-2">• <strong>Importante:</strong> Verifica problemas trabalhistas</p>
+                        <p>• <strong>Recomendado:</strong> Análise financeira básica</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let sourcesData = [];
+let selectedSources = new Set();
+
+// Format CNPJ for display
+function formatCnpj(cnpj) {
+    if (cnpj.length === 14) {
+        return cnpj.replace(/^(\d{2})(\d)/, '$1.$2')
+                  .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+                  .replace(/\.(\d{3})(\d)/, '.$1/$2')
+                  .replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    return cnpj;
+}
+
+// Format price
+function formatPrice(price) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(price);
+}
+
+// Load CNPJ from sessionStorage
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM Content Loaded');
+    
+    const savedCnpj = sessionStorage.getItem('analysisCnpj');
+    const cnpjDisplay = document.getElementById('cnpjDisplay');
+    
+    if (savedCnpj) {
+        cnpjDisplay.textContent = formatCnpj(savedCnpj);
+        console.log('CNPJ loaded:', savedCnpj);
+    } else {
+        console.log('No CNPJ found, redirecting...');
+        window.location.href = '/analyses/new';
+        return;
+    }
+    
+    // Load sources data
+    console.log('Loading sources...');
+    await loadSources();
+});
+
+// Load sources from API
+async function loadSources() {
+    try {
+        console.log('Loading sources from API...');
+        const response = await fetch('/web/api/sources');
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API Error:', errorText);
+            throw new Error(`Failed to load sources: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Sources data loaded:', data);
+        sourcesData = data.sources;
+        
+        renderSources();
+        updateSummary();
+        
+    } catch (error) {
+        console.error('Error loading sources:', error);
+        
+        // Fallback: Use hardcoded sources if API fails
+        console.log('Using fallback sources...');
+        sourcesData = [
+            {
+                id: 'receita_federal',
+                name: 'Receita Federal',
+                icon: '📋',
+                category: 'essential',
+                price: 1.00,
+                status: 'available',
+                delivery_description: 'Disponível imediatamente após a finalização da compra',
+                simple_description: 'Dados oficiais da empresa: endereço, telefone, situação cadastral e atividades',
+                what_it_is: 'Consulta oficial ao CNPJ na Receita Federal Brasileira',
+                why_important: 'Verifica se a empresa existe legalmente e fornece informações básicas de contato e localização',
+                main_data: ['Nome completo da empresa', 'Endereço e telefone', 'Situação (ativa/inaiva)', 'Data de abertura'],
+                who_needs: ['Todas as análises', 'Verificação básica de existência'],
+                color: 'green',
+                badge_text: 'Essencial'
+            },
+            {
+                id: 'trabalhista',
+                name: 'Certidão Trabalhista',
+                icon: '👷',
+                category: 'important',
+                price: 1.00,
+                status: 'available',
+                delivery_description: 'Disponível imediatamente após a finalização da compra',
+                simple_description: 'Verifica se a empresa tem dívidas com funcionários ou processos na justiça do trabalho',
+                what_it_is: 'Certificado que comprova a regularidade da empresa com a Justiça do Trabalho',
+                why_important: 'Revela problemas com funcionários, salários em atraso e processos trabalhistas',
+                main_data: ['Dívidas trabalhistas', 'Processos contra a empresa', 'Salários em atraso'],
+                who_needs: ['Contratação de funcionários', 'Análise de risco trabalhista'],
+                color: 'yellow',
+                badge_text: 'Importante'
+            },
+            {
+                id: 'fgts',
+                name: 'FGTS',
+                icon: '💰',
+                category: 'recommended',
+                price: 1.00,
+                status: 'available',
+                delivery_description: 'Disponível imediatamente após a finalização da compra',
+                simple_description: 'Verifica se a empresa está em dia com as obrigações do FGTS dos funcionários',
+                what_it_is: 'Consulta ao sistema do Fundo de Garantia do Tempo de Serviço',
+                why_important: 'Indica problemas financeiros que afetam os funcionários',
+                main_data: ['Situação do FGTS', 'Débitos com Caixa', 'Parcelamentos'],
+                who_needs: ['Análise de saúde financeira', 'Verificação de risco'],
+                color: 'blue',
+                badge_text: 'Recomendado'
+            },
+            {
+                id: 'comprot_processo',
+                name: 'Comprot / Processo',
+                icon: '⚖️',
+                category: 'advanced',
+                price: 1.00,
+                status: 'available',
+                delivery_description: 'Disponível imediatamente após a finalização da compra',
+                simple_description: 'Verifica processos judiciais e administrativos contra a empresa em todo o Brasil',
+                what_it_is: 'Consulta integrada aos sistemas judiciais e administrativos',
+                why_important: 'Revela problemas legais que podem afetar a empresa',
+                main_data: ['Processos judiciais', 'Ações de cobrança', 'Disputas comerciais'],
+                who_needs: ['Análise de risco legal', 'Due diligence completo'],
+                color: 'purple',
+                badge_text: 'Avançado'
+            },
+            {
+                id: 'divida_ativa',
+                name: 'Dívida Ativa',
+                icon: '💳',
+                category: 'advanced',
+                price: 1.00,
+                status: 'available',
+                delivery_description: 'Disponível imediatamente após a finalização da compra',
+                simple_description: 'Verifica dívidas da empresa com governo federal, estadual e municipal',
+                what_it_is: 'Consulta integrada às dívidas fiscais em todos os níveis',
+                why_important: 'Mostra todas as dívidas fiscais da empresa',
+                main_data: ['Dívidas federais', 'Dívidas estaduais', 'Dívidas municipais'],
+                who_needs: ['Análise de risco fiscal completo', 'Due diligence'],
+                color: 'red',
+                badge_text: 'Crítico'
+            },
+            {
+                id: 'cnj_improbidade',
+                name: 'CNJ / Improbidade Administrativa e Inelegibilidade',
+                icon: '🏛️',
+                category: 'advanced',
+                price: 1.00,
+                status: 'available',
+                delivery_description: 'Disponível imediatamente após a finalização da compra',
+                simple_description: 'Verifica se a empresa ou seus sócios têm processos de improbidade ou inelegibilidade',
+                what_it_is: 'Consulta ao Conselho Nacional de Justiça',
+                why_important: 'Revela problemas sérios de conduta que podem impedir contratos',
+                main_data: ['Processos de improbidade', 'Inelegibilidades', 'Sanções administrativas'],
+                who_needs: ['Análise de risco político', 'Contratos com governo'],
+                color: 'orange',
+                badge_text: 'Especial'
+            },
+            {
+                id: 'cnj_seeu',
+                name: 'CNJ / SEEU / Processos',
+                icon: '📄',
+                category: 'advanced',
+                price: 1.00,
+                status: 'available',
+                delivery_description: 'Disponível imediatamente após a finalização da compra',
+                simple_description: 'Verifica todos os processos judiciais da empresa no sistema nacional do CNJ',
+                what_it_is: 'Consulta ao Sistema de Processo Eletrônico Único (SEEU)',
+                why_important: 'Fornece visão completa de todos os processos judiciais',
+                main_data: ['Todos os processos judiciais', 'Distribuições recentes', 'Andamentos'],
+                who_needs: ['Análise de risco legal completo', 'Due diligence detalhado'],
+                color: 'indigo',
+                badge_text: 'Completo'
+            }
+        ];
+        
+        renderSources();
+        updateSummary();
+        
+        // Show warning message
+        const container = document.getElementById('sourcesContainer');
+        const warning = document.createElement('div');
+        warning.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6';
+        warning.innerHTML = `
+            <div class="flex">
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        ⚠️ Usando fontes padrão devido a erro no carregamento: ${error.message}
+                    </p>
+                </div>
+            </div>
+        `;
+        container.parentNode.insertBefore(warning, container);
+    }
+}
+
+// Render sources dynamically
+function renderSources() {
+    const container = document.getElementById('sourcesContainer');
+    
+    const sourcesHtml = sourcesData.map(source => {
+        const isDisabled = source.status !== 'available';
+        const isChecked = !isDisabled && source.category === 'essential'; // Auto-check essential sources
+        
+        if (isChecked && !isDisabled) {
+            selectedSources.add(source.id);
+        }
+        
+        return `
+            <div class="bg-white border rounded-lg p-6 hover:shadow-md transition-shadow ${isDisabled ? 'opacity-75' : ''}">
+                <div class="flex items-start">
+                    <div class="flex items-center h-5 pt-1">
+                        <input id="${source.id}" 
+                               name="sources" 
+                               value="${source.id}" 
+                               type="checkbox" 
+                               ${isChecked ? 'checked' : ''}
+                               ${isDisabled ? 'disabled' : ''}
+                               class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <label for="${source.id}" class="text-lg font-medium text-gray-900 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                            ${source.icon} ${source.name}
+                        </label>
+                        
+                        <!-- Price and Status -->
+                        <div class="mt-2 flex items-center flex-wrap gap-2">
+                            ${source.price > 0 
+                                ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    💰 ${formatPrice(source.price)}
+                                  </span>`
+                                : `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    🆓 Gratuito
+                                  </span>`
+                            }
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${source.color}-100 text-${source.color}-800">
+                                ${source.badge_text}
+                            </span>
+                            ${isDisabled ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">🚧 Em breve</span>' : ''}
+                        </div>
+                        
+                        <!-- Delivery Description -->
+                        <div class="mt-3">
+                            <div class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                                <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                <span class="text-sm font-medium text-blue-700">${source.delivery_description}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Simple Description -->
+                        <div class="mt-3">
+                            <p class="text-sm text-gray-700 font-medium">${source.simple_description}</p>
+                        </div>
+                        
+                        <!-- Detailed Information (Collapsible) -->
+                        <div class="mt-3">
+                            <button type="button" onclick="toggleDetails('${source.id}')" 
+                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                Ver mais detalhes ↓
+                            </button>
+                            <div id="details-${source.id}" class="hidden mt-3 p-3 bg-gray-50 rounded-md text-xs text-gray-600 space-y-2">
+                                <div>
+                                    <strong>O que é:</strong> ${source.what_it_is}
+                                </div>
+                                <div>
+                                    <strong>Por que é importante:</strong> ${source.why_important}
+                                </div>
+                                <div>
+                                    <strong>Principais dados:</strong>
+                                    <ul class="ml-4 mt-1 space-y-1">
+                                        ${source.main_data.map(data => `<li>• ${data}</li>`).join('')}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <strong>Ideal para:</strong>
+                                    <ul class="ml-4 mt-1 space-y-1">
+                                        ${source.who_needs.map(need => `<li>• ${need}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = sourcesHtml;
+    
+    // Add event listeners
+    sourcesData.forEach(source => {
+        const checkbox = document.getElementById(source.id);
+        if (checkbox && !checkbox.disabled) {
+            checkbox.addEventListener('change', () => handleSourceChange(source.id));
+        }
+    });
+    
+    // Update continue button
+    updateContinueButton();
+}
+
+// Toggle source details
+function toggleDetails(sourceId) {
+    const details = document.getElementById(`details-${sourceId}`);
+    const button = event.target;
+    
+    if (details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        button.textContent = 'Ver menos detalhes ↑';
+    } else {
+        details.classList.add('hidden');
+        button.textContent = 'Ver mais detalhes ↓';
+    }
+}
+
+// Handle source selection change
+function handleSourceChange(sourceId) {
+    const checkbox = document.getElementById(sourceId);
+    
+    if (checkbox.checked) {
+        selectedSources.add(sourceId);
+    } else {
+        selectedSources.delete(sourceId);
+    }
+    
+    updateSummary();
+    updateContinueButton();
+}
+
+// Update summary panel
+function updateSummary() {
+    const availableSources = sourcesData.filter(s => s.status === 'available');
+    const comingSoonSources = sourcesData.filter(s => s.status !== 'available');
+    
+    // Update counters
+    document.getElementById('selectedCount').textContent = selectedSources.size;
+    document.getElementById('availableCount').textContent = availableSources.length;
+    document.getElementById('comingSoonCount').textContent = comingSoonSources.length;
+    
+    // Calculate price
+    let totalPrice = 0;
+    let freeCount = 0;
+    let paidCount = 0;
+    
+    selectedSources.forEach(sourceId => {
+        const source = sourcesData.find(s => s.id === sourceId);
+        if (source) {
+            totalPrice += source.price;
+            if (source.price > 0) {
+                paidCount++;
+            } else {
+                freeCount++;
+            }
+        }
+    });
+    
+    document.getElementById('totalPrice').textContent = formatPrice(totalPrice);
+    document.getElementById('freeCount').textContent = freeCount;
+    document.getElementById('paidCount').textContent = paidCount;
+    
+    // Update selected sources list
+    const selectedList = document.getElementById('selectedSourcesList');
+    if (selectedSources.size > 0) {
+        const selectedHtml = Array.from(selectedSources).map(sourceId => {
+            const source = sourcesData.find(s => s.id === sourceId);
+            if (!source) return '';
+            
+            return `
+                <div class="flex justify-between items-center py-1">
+                    <span class="text-xs text-gray-700">${source.icon} ${source.name}</span>
+                    <span class="text-xs font-medium ${source.price > 0 ? 'text-green-600' : 'text-blue-600'}">
+                        ${source.price > 0 ? formatPrice(source.price) : 'Grátis'}
+                    </span>
+                </div>
+            `;
+        }).join('');
+        selectedList.innerHTML = selectedHtml;
+    } else {
+        selectedList.innerHTML = '<div class="text-sm text-gray-500 italic">Nenhuma fonte selecionada</div>';
+    }
+    
+    // Hide error if sources are selected
+    if (selectedSources.size > 0) {
+        document.getElementById('selectionError').classList.add('hidden');
+    }
+}
+
+// Update continue button state
+function updateContinueButton() {
+    const continueBtn = document.getElementById('continueBtn');
+    const selectionError = document.getElementById('selectionError');
+    
+    if (selectedSources.size > 0) {
+        continueBtn.disabled = false;
+        continueBtn.className = 'w-full bg-blue-600 text-white py-3 px-4 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors';
+        continueBtn.textContent = 'Continuar para Confirmação';
+        selectionError.classList.add('hidden');
+    } else {
+        continueBtn.disabled = true;
+        continueBtn.className = 'w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-md text-sm font-medium cursor-not-allowed transition-colors';
+        continueBtn.textContent = 'Selecione pelo menos 1 fonte';
+    }
+}
+
+// Handle continue button click
+document.getElementById('continueBtn').addEventListener('click', async () => {
+    if (selectedSources.size === 0) {
+        document.getElementById('selectionError').classList.remove('hidden');
+        return;
+    }
+    
+    // Store selected sources
+    sessionStorage.setItem('selectedSources', JSON.stringify(Array.from(selectedSources)));
+    
+    // Redirect to confirmation
+    window.location.href = '/analyses/confirm';
+});
+
+// Load previously selected sources
+document.addEventListener('DOMContentLoaded', () => {
+    const savedSources = sessionStorage.getItem('selectedSources');
+    if (savedSources) {
+        selectedSources = new Set(JSON.parse(savedSources));
+    }
+});
+</script>
+{% endblock %}

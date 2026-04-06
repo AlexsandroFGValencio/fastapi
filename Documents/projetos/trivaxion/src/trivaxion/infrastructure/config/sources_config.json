@@ -1,0 +1,194 @@
+{
+  "sources": [
+    {
+      "id": "receita_federal",
+      "name": "Receita Federal",
+      "icon": "📋",
+      "category": "essential",
+      "price": 1.00,
+      "status": "available",
+            "delivery_description": "Disponível imediatamente após a finalização da compra",
+      "simple_description": "Dados oficiais da empresa: endereço, telefone, situação cadastral e atividades",
+      "what_it_is": "Consulta oficial ao CNPJ na Receita Federal Brasileira",
+      "why_important": "Verifica se a empresa existe legalmente e fornece informações básicas de contato e localização",
+      "main_data": [
+        "Nome completo da empresa",
+        "Endereço e telefone", 
+        "Situação (ativa/inaiva)",
+        "Data de abertura",
+        "Tipo de atividade (ramo)",
+        "Porte (micro/pequena/média/grande)"
+      ],
+      "who_needs": [
+        "Todas as análises",
+        "Verificação básica de existência",
+        "Contato comercial",
+        "Análise de fornecedores"
+      ],
+      "color": "green",
+      "badge_text": "Essencial"
+    },
+    {
+      "id": "trabalhista",
+      "name": "Certidão Trabalhista", 
+      "icon": "👷",
+      "category": "important",
+      "price": 1.00,
+      "status": "available",
+            "delivery_description": "Disponível imediatamente após a finalização da compra",
+      "simple_description": "Verifica se a empresa tem dívidas com funcionários ou processos na justiça do trabalho",
+      "what_it_is": "Certificado que comprova a regularidade da empresa com a Justiça do Trabalho",
+      "why_important": "Revela problemas com funcionários, salários em atraso e processos trabalhistas que podem indicar dificuldades financeiras",
+      "main_data": [
+        "Dívidas trabalhistas",
+        "Processos contra a empresa",
+        "Salários em atraso",
+        "Multas trabalhistas",
+        "Regularidade com FGTS"
+      ],
+      "who_needs": [
+        "Contratação de funcionários",
+        "Análise de risco trabalhista",
+        "Due diligence em aquisições",
+        "Parcerias comerciais"
+      ],
+      "color": "yellow",
+      "badge_text": "Importante"
+    },
+    {
+      "id": "fgts",
+      "name": "FGTS",
+      "icon": "💰", 
+      "category": "recommended",
+      "price": 1.00,
+      "status": "available",
+            "delivery_description": "Disponível imediatamente após a finalização da compra",
+      "simple_description": "Verifica se a empresa está em dia com as obrigações do FGTS dos funcionários",
+      "what_it_is": "Consulta ao sistema do Fundo de Garantia do Tempo de Serviço",
+      "why_important": "Indica problemas financeiros que afetam os funcionários e mostra se a empresa cumpre suas obrigações trabalhistas",
+      "main_data": [
+        "Situação do FGTS",
+        "Débitos com Caixa",
+        "Parcelamentos em andamento", 
+        "Regularidade fiscal",
+        "Alertas financeiros"
+      ],
+      "who_needs": [
+        "Análise de saúde financeira",
+        "Verificação de risco",
+        "Avaliação de fornecedores",
+        "Análise de crédito"
+      ],
+      "color": "blue",
+      "badge_text": "Recomendado"
+    },
+    {
+      "id": "comprot_processo",
+      "name": "Comprot / Processo",
+      "icon": "⚖️",
+      "category": "advanced",
+      "price": 1.00,
+      "status": "available",
+            "delivery_description": "Disponível imediatamente após a finalização da compra",
+      "simple_description": "Verifica processos judiciais e administrativos contra a empresa em todo o Brasil",
+      "what_it_is": "Consulta integrada aos sistemas judiciais e administrativos para encontrar processos",
+      "why_important": "Revela problemas legais que podem afetar a empresa, como dívidas judiciais, ações de cobrança e disputas comerciais",
+      "main_data": [
+        "Processos judiciais",
+        "Ações de cobrança",
+        "Disputas comerciais",
+        "Valores envolvidos",
+        "Fase dos processos"
+      ],
+      "who_needs": [
+        "Análise de risco legal",
+        "Due diligence completo",
+        "Análise de parceiros comerciais",
+        "Grandes contratos"
+      ],
+      "color": "purple",
+      "badge_text": "Avançado"
+    },
+    {
+      "id": "divida_ativa",
+      "name": "Dívida Ativa",
+      "icon": "💳",
+      "category": "advanced", 
+      "price": 1.00,
+      "status": "available",
+            "delivery_description": "Disponível imediatamente após a finalização da compra",
+      "simple_description": "Verifica dívidas da empresa com governo federal, estadual e municipal (impostos, multas)",
+      "what_it_is": "Consulta integrada às dívidas fiscais em todos os níveis governamentais",
+      "why_important": "Mostra todas as dívidas fiscais da empresa, indicando problemas financeiros graves e risco de execuções fiscais",
+      "main_data": [
+        "Dívidas federais (IR, PIS, COFINS)",
+        "Dívidas estaduais (ICMS)",
+        "Dívidas municipais (ISS, IPTU)",
+        "Multas e juros",
+        "Processos fiscais"
+      ],
+      "who_needs": [
+        "Análise de risco fiscal completo",
+        "Due diligence em aquisições",
+        "Análise de saúde financeira",
+        "Grandes contratos comerciais"
+      ],
+      "color": "red",
+      "badge_text": "Crítico"
+    },
+    {
+      "id": "cnj_improbidade",
+      "name": "CNJ / Improbidade Administrativa e Inelegibilidade",
+      "icon": "🏛️",
+      "category": "advanced",
+      "price": 1.00,
+      "status": "available", 
+            "delivery_description": "Disponível imediatamente após a finalização da compra",
+      "simple_description": "Verifica se a empresa ou seus sócios têm processos de improbidade ou inelegibilidade",
+      "what_it_is": "Consulta ao Conselho Nacional de Justiça para encontrar processos de improbidade administrativa e restrições políticas",
+      "why_important": "Revela problemas sérios de conduta que podem impedir contratos com governo e afetar reputação",
+      "main_data": [
+        "Processos de improbidade",
+        "Inelegibilidades",
+        "Sanções administrativas",
+        "Impedimentos legais",
+        "Restrições governamentais"
+      ],
+      "who_needs": [
+        "Análise de risco político",
+        "Contratos com governo",
+        "Due diligence em aquisições",
+        "Análise de sócios"
+      ],
+      "color": "orange",
+      "badge_text": "Especial"
+    },
+    {
+      "id": "cnj_seeu",
+      "name": "CNJ / SEEU / Processos",
+      "icon": "📄",
+      "category": "advanced",
+      "price": 1.00,
+      "status": "available",
+            "delivery_description": "Disponível imediatamente após a finalização da compra",
+      "simple_description": "Verifica todos os processos judiciais da empresa no sistema nacional do CNJ",
+      "what_it_is": "Consulta ao Sistema de Processo Eletrônico Único (SEEU) e base nacional do CNJ",
+      "why_important": "Fornece visão completa de todos os processos judiciais, mostrando o histórico legal completo da empresa",
+      "main_data": [
+        "Todos os processos judiciais",
+        "Distribuições recentes",
+        "Andamentos processuais",
+        "Decisões e sentenças",
+        "Histórico completo"
+      ],
+      "who_needs": [
+        "Análise de risco legal completo",
+        "Due diligence detalhado",
+        "Análise de litigiosidade",
+        "Avaliação de passivos"
+      ],
+      "color": "indigo",
+      "badge_text": "Completo"
+    }
+  ]
+}

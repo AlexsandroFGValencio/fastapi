@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from trivaxion.adapters.outbound.config.json_source_config_provider import JsonSourceConfigProvider
 from trivaxion.adapters.outbound.persistence.sqlalchemy_repositories import (
     SQLAlchemyAnalysisRepository,
     SQLAlchemyAuditRepository,
@@ -26,6 +27,7 @@ from trivaxion.application.ports.repositories import (
     UserRepository,
 )
 from trivaxion.application.ports.search import SearchPort
+from trivaxion.application.ports.source_config import SourceConfigProvider
 from trivaxion.infrastructure.config.settings import Settings, get_settings
 from trivaxion.infrastructure.security.jwt import JWTTokenService
 from trivaxion.infrastructure.security.password import BcryptPasswordHasher
@@ -39,6 +41,7 @@ class Container:
         self._search_port: SearchPort | None = None
         self._company_data_provider: CompanyDataProvider | None = None
         self._labor_certificate_provider: LaborCertificateProvider | None = None
+        self._source_config_provider: SourceConfigProvider | None = None
 
     @property
     def settings(self) -> Settings:
@@ -68,6 +71,11 @@ class Container:
         if self._labor_certificate_provider is None:
             self._labor_certificate_provider = CertidaoTrabalhistaProvider(self._settings)
         return self._labor_certificate_provider
+
+    def get_source_config_provider(self) -> SourceConfigProvider:
+        if self._source_config_provider is None:
+            self._source_config_provider = JsonSourceConfigProvider(self._settings)
+        return self._source_config_provider
 
     def get_user_repository(self, session: AsyncSession) -> UserRepository:
         return SQLAlchemyUserRepository(session)

@@ -15,7 +15,7 @@ from trivaxion.application.ports.repositories import (
     OrganizationRepository,
 )
 from trivaxion.application.ports.search import SearchPort
-from trivaxion.domain.analysis.analysis import Analysis, DataSource, RiskLevel, SourceResult
+from trivaxion.domain.analysis.analysis import Analysis, AnalysisStatus, DataSource, RiskLevel, SourceResult
 from trivaxion.domain.analysis.risk_engine import RiskEngine
 from trivaxion.domain.audit.audit_event import AuditEvent, EventType
 from trivaxion.domain.companies.company import Company, CompanyStatus, Partner
@@ -424,9 +424,21 @@ class GetDashboardSummaryUseCase:
             1 for a in all_analyses if a.created_at.month == current_month
         )
 
+        # Count processing analyses
+        processing = sum(1 for a in all_analyses if a.status == AnalysisStatus.PROCESSING)
+
+        # Count completed today
+        today = datetime.now().date()
+        completed_today = sum(
+            1 for a in all_analyses 
+            if a.status == AnalysisStatus.COMPLETED and a.completed_at and a.completed_at.date() == today
+        )
+
         return DashboardSummary(
             total_analyses=len(all_analyses),
             analyses_this_month=analyses_this_month,
+            processing=processing,
+            completed_today=completed_today,
             high_risk_count=high_risk,
             medium_risk_count=medium_risk,
             low_risk_count=low_risk,

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str = Field(default="your-secret-key-change-in-production")
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 30
+    jwt_access_token_expire_minutes: int = 480  # 8 hours
     jwt_refresh_token_expire_days: int = 7
 
     cors_origins: list[str] = Field(default=["http://localhost:3000", "http://localhost:8000"])

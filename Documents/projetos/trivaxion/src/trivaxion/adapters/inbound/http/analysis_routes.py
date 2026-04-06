@@ -41,6 +41,7 @@ router = APIRouter(prefix="/analyses", tags=["analyses"])
 
 class CreateAnalysisRequestModel(BaseModel):
     cnpj: str
+    sources: list[str] = []
 
 
 class AnalysisResponseModel(BaseModel):
@@ -93,7 +94,7 @@ async def create_analysis(
         risk_engine=RiskEngine.default(),
     )
     
-    dto_request = CreateAnalysisRequest(cnpj=request.cnpj)
+    dto_request = CreateAnalysisRequest(cnpj=request.cnpj, sources=request.sources)
     response = await use_case.execute(
         dto_request,
         str(current_user.organization_id),
