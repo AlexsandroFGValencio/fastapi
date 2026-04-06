@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Análise - Trivaxion{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <a href="/analyses" class="text-blue-600 hover:text-blue-800 text-sm">&larr; Voltar</a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">Nova Análise</h1>
+        <p class="mt-1 text-sm text-gray-600">Solicite uma análise de risco para uma empresa</p>
+    </div>
+
+    <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <form id="analysisForm" class="space-y-6">
+                <div>
+                    <label for="cnpj" class="block text-sm font-medium text-gray-700">CNPJ</label>
+                    <div class="mt-1">
+                        <input type="text" 
+                               id="cnpj" 
+                               name="cnpj" 
+                               required
+                               maxlength="18"
+                               placeholder="00.000.000/0000-00"
+                               class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Digite o CNPJ da empresa que deseja analisar</p>
+                </div>
+
+                <div id="error-message" class="hidden">
+                    <div class="rounded-md bg-red-50 p-4">
+                        <div class="flex">
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800" id="error-text"></h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" 
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Solicitar Análise
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Format CNPJ as user types
+document.getElementById('cnpj').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 14) {
+        value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+        value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+        value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+        value = value.replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    e.target.value = value;
+});
+
+document.getElementById('analysisForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const cnpjRaw = document.getElementById('cnpj').value.replace(/\D/g, '');
+    const errorDiv = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    
+    // Validate CNPJ length
+    if (cnpjRaw.length !== 14) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'CNPJ deve ter 14 dígitos';
+        return;
+    }
+    
+    errorDiv.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processando...';
+    
+    try {
+        const token = localStorage.getItem('access_token');
+        console.log('Creating analysis with CNPJ:', cnpjRaw);
+        console.log('Token:', token ? 'Present' : 'Missing');
+        
+        const response = await fetch('/api/v1/analyses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ cnpj: cnpjRaw })
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Analysis created:', data);
+            window.location.href = '/analyses/' + data.id;
+        } else {
+            const errorData = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
+            console.error('Error response:', errorData);
+            errorDiv.classList.remove('hidden');
+            errorText.textContent = errorData.detail || 'Erro ao solicitar análise';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Solicitar Análise';
+        }
+    } catch (error) {
+        console.error('Exception:', error);
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'Erro de conexão: ' + error.message;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Solicitar Análise';
+    }
+});
+</script>
+{% endblock %}

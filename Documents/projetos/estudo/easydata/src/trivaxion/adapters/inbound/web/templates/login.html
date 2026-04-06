@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Trivaxion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Trivaxion</h2>
+            <p class="mt-2 text-center text-sm text-gray-600">Análise de Dados Empresariais</p>
+        </div>
+
+        <div id="error-message"></div>
+
+        <form class="mt-8 space-y-6" hx-post="/web/login" hx-target="#error-message" hx-swap="innerHTML" hx-on::after-request="handleLoginResponse(event)">
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div>
+                    <label for="username" class="sr-only">Email</label>
+                    <input type="email" id="username" name="username" required
+                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                           placeholder="Email">
+                </div>
+                <div>
+                    <label for="password" class="sr-only">Senha</label>
+                    <input type="password" id="password" name="password" required
+                           class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                           placeholder="Senha">
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="login-text">Entrar</span>
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <p class="text-sm text-gray-600 text-center">
+                Credenciais de teste:<br>
+                <strong>admin@trivaxion.com</strong> / admin123<br>
+                <strong>analyst@trivaxion.com</strong> / analyst123
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function handleLoginResponse(event) {
+            const xhr = event.detail.xhr;
+            const errorDiv = document.getElementById('error-message');
+
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                localStorage.setItem('access_token', response.access_token);
+                localStorage.setItem('user', JSON.stringify(response.user));
+                window.location.href = '/';
+            } else if (xhr.status === 401) {
+                errorDiv.innerHTML = '<div class="rounded-md bg-red-50 p-4"><p class="text-sm text-red-800">Email ou senha incorretos</p></div>';
+            } else if (xhr.status >= 400) {
+                errorDiv.innerHTML = '<div class="rounded-md bg-red-50 p-4"><p class="text-sm text-red-800">Erro ao fazer login. Tente novamente.</p></div>';
+            }
+        }
+
+        document.querySelector('form').addEventListener('htmx:beforeRequest', function() {
+            const btn = document.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.querySelector('.login-text').textContent = 'Entrando...';
+        });
+
+        document.querySelector('form').addEventListener('htmx:afterRequest', function() {
+            const btn = document.querySelector('button[type="submit"]');
+            btn.disabled = false;
+            btn.querySelector('.login-text').textContent = 'Entrar';
+        });
+    </script>
+</body>
+</html>
